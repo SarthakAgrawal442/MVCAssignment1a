@@ -1,0 +1,27 @@
+﻿@model IEnumerable<MVCSampleApp.Models.Client>
+
+<p>
+    <a asp-action="Create">Create New</a>
+</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.Name.FirstName)
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model) {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.Name.FirstName)
+            </td>
+            <td>
+                    <a asp-action="AddClient" asp-route-ClientId="@item.ID" asp-route-ServiceId="@ViewBag.Id">Add</a>
+            </td>
+        </tr>
+}
+    </tbody>
+</table>

@@ -1,0 +1,28 @@
+@{
+    ViewData["Title"] = "Register";
+}
+
+<h2>Register</h2>
+
+<form asp-action="Register" method="post">
+    <div class="form-group">
+        <label>Email</label>
+        <input type="email" name="email" class="form-control" required />
+    </div>
+    <div class="form-group">
+        <label>Password</label>
+        <input type="password" name="password" class="form-control" required />
+    </div>
+    <div class="form-group">
+        <label>Phone Number (for SMS 2FA, include country code e.g. +1)</label>
+        <input type="tel" name="phoneNumber" class="form-control" required />
+    </div>
+    <button type="submit" class="btn btn-primary mt-2">Register</button>
+</form>
+
+<div class="text-danger mt-2">
+    @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+    {
+        <p>@error.ErrorMessage</p>
+    }
+</div>

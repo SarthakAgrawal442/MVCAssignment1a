@@ -8,9 +8,11 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using MVCSampleApp;
 using MVCSampleApp.Models;
+using Microsoft.AspNetCore.Authorization;
 
 namespace MVCSampleApp.Controllers
 {
+    [Authorize]
     public class ClientsController : Controller
     {
         private readonly AppContext _context;
@@ -58,10 +60,13 @@ namespace MVCSampleApp.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("Name, Address, Income,ID")] Client client, IFormFile file)
         {
-            using (var target = new MemoryStream())
+            if (file != null && file.Length > 0)
             {
-                file.CopyTo(target);
-                client.Photo = target.ToArray();
+                using (var target = new MemoryStream())
+                {
+                    file.CopyTo(target);
+                    client.Photo = target.ToArray();
+                }
             }
 
             if (ModelState.IsValid)

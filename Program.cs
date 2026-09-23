@@ -2,8 +2,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using MVCSampleApp;
 using MVCSampleApp.Models;
-using MVCSampleApp.Services;
 using MVCSampleApp.Middleware;
+using AppContext = MVCSampleApp.AppContext;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,7 +11,8 @@ builder.Services.AddControllersWithViews();
 
 // Existing DB connection - keep your current connection string setup
 builder.Services.AddDbContext<AppContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+
 
 // Identity - handles login, roles, and the 2FA plumbing
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
@@ -32,9 +33,6 @@ builder.Services.AddAuthentication()
         googleOptions.ClientId = builder.Configuration["Authentication:Google:ClientId"];
         googleOptions.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
     });
-
-// SMS sender for 2FA codes (Twilio)
-builder.Services.AddSingleton<ISmsSender, SmsSender>();
 
 var app = builder.Build();
 

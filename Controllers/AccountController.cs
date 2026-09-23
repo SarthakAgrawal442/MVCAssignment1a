@@ -2,7 +2,6 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using MVCSampleApp.Models;
-using MVCSampleApp.Services;
 
 namespace MVCSampleApp.Controllers
 {
@@ -10,14 +9,12 @@ namespace MVCSampleApp.Controllers
     {
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly UserManager<ApplicationUser> _userManager;
-        private readonly ISmsSender _smsSender;
 
         public AccountController(SignInManager<ApplicationUser> signInManager,
-            UserManager<ApplicationUser> userManager, ISmsSender smsSender)
+            UserManager<ApplicationUser> userManager)
         {
             _signInManager = signInManager;
             _userManager = userManager;
-            _smsSender = smsSender;
         }
 
         [HttpGet]
@@ -32,8 +29,7 @@ namespace MVCSampleApp.Controllers
             if (result.Succeeded)
             {
                 await _userManager.AddToRoleAsync(user, "Employee");
-                // Turn 2FA on for this account so it gets asked for an SMS code on login
-                await _userManager.SetTwoFactorEnabledAsync(user, true);
+
                 await _signInManager.SignInAsync(user, isPersistent: false);
                 return RedirectToAction("Index", "Home");
             }
@@ -52,35 +48,10 @@ namespace MVCSampleApp.Controllers
         {
             var result = await _signInManager.PasswordSignInAsync(email, password, isPersistent: false, lockoutOnFailure: false);
 
-            if (result.RequiresTwoFactor)
-            {
-                var user = await _userManager.FindByEmailAsync(email);
-                var code = await _userManager.GenerateTwoFactorTokenAsync(user, "Phone");
-                await _smsSender.SendSmsAsync(user.PhoneNumber, $"Your login code is: {code}");
-
-                TempData["2fa-email"] = email;
-                return RedirectToAction("LoginWith2fa");
-            }
-
             if (result.Succeeded)
                 return RedirectToAction("Index", "Home");
 
             ModelState.AddModelError("", "Invalid login attempt.");
-            return View();
-        }
-
-        [HttpGet]
-        public IActionResult LoginWith2fa() => View();
-
-        [HttpPost]
-        public async Task<IActionResult> LoginWith2fa(string code)
-        {
-            var result = await _signInManager.TwoFactorSignInAsync("Phone", code, isPersistent: false, rememberClient: false);
-
-            if (result.Succeeded)
-                return RedirectToAction("Index", "Home");
-
-            ModelState.AddModelError("", "Invalid code.");
             return View();
         }
 

@@ -73,13 +73,36 @@ namespace MVCSampleApp.Controllers
             if (result.Succeeded)
                 return RedirectToAction("Index", "Home");
 
-            // First time logging in with Google - create a local account for them
             var email = info.Principal.FindFirstValue(ClaimTypes.Email);
-            var user = new ApplicationUser { UserName = email, Email = email, EmailConfirmed = true };
-            await _userManager.CreateAsync(user);
-            await _userManager.AddLoginAsync(user, info);
-            await _userManager.AddToRoleAsync(user, "Employee");
-            await _signInManager.SignInAsync(user, isPersistent: false);
+            var existingUser = await _userManager.FindByEmailAsync(email);
+
+            if (existingUser != null)
+            {
+                // Account already exists (e.g. registered with email/password) — link this Google login to it
+                var linkResult = await _userManager.AddLoginAsync(existingUser, info);
+                if (linkResult.Succeeded)
+                {
+                    await _signInManager.SignInAsync(existingUser, isPersistent: false);
+                    return RedirectToAction("Index", "Home");
+                }
+
+                ModelState.AddModelError("", "Could not link your Google account. Please try logging in with your email and password instead.");
+                return RedirectToAction("Login");
+            }
+
+            // Genuinely new user — create the account
+            var newUser = new ApplicationUser { UserName = email, Email = email, EmailConfirmed = true };
+            var createResult = await _userManager.CreateAsync(newUser);
+
+            if (!createResult.Succeeded)
+            {
+                ModelState.AddModelError("", "Could not create an account for this Google login.");
+                return RedirectToAction("Login");
+            }
+
+            await _userManager.AddLoginAsync(newUser, info);
+            await _userManager.AddToRoleAsync(newUser, "Employee");
+            await _signInManager.SignInAsync(newUser, isPersistent: false);
 
             return RedirectToAction("Index", "Home");
         }
@@ -88,6 +111,11 @@ namespace MVCSampleApp.Controllers
         {
             await _signInManager.SignOutAsync();
             return RedirectToAction("Index", "Home");
+        }
+        [HttpGet]
+        public IActionResult AccessDenied()
+        {
+            return View();
         }
     }
 }

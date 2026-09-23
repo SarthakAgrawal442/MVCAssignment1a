@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +11,7 @@ using MVCSampleApp.Models;
 
 namespace MVCSampleApp.Controllers
 {
+    [Authorize]
     public class EmployeesController : Controller
     {
         private readonly AppContext _context;
@@ -22,7 +24,7 @@ namespace MVCSampleApp.Controllers
         // GET: Employees
         public async Task<IActionResult> Index()
         {
-            return View(await _context.Employees.Include(x=>x.Name).Include(x=>x.Address).Include(x=>x.MyService).ToListAsync());
+            return View(await _context.Employees.Include(x => x.Name).Include(x => x.Address).Include(x => x.MyService).ToListAsync());
         }
 
         // GET: Employees/Details/5
@@ -44,6 +46,7 @@ namespace MVCSampleApp.Controllers
         }
 
         // GET: Employees/Create
+        [Authorize(Roles = "Admin")]
         public IActionResult Create()
         {
             List<SelectListItem> roles = new List<SelectListItem>
@@ -58,13 +61,11 @@ namespace MVCSampleApp.Controllers
         }
 
         // POST: Employees/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
+        [Authorize(Roles = "Admin")]
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("Name,Address, ServiceId, Salary,Roles,ID")] Employee employee)
         {
-
             if (ModelState.IsValid)
             {
                 employee.ID = Guid.NewGuid();
@@ -78,6 +79,7 @@ namespace MVCSampleApp.Controllers
         }
 
         // GET: Employees/Edit/5
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Edit(Guid? id)
         {
             if (id == null)
@@ -94,8 +96,7 @@ namespace MVCSampleApp.Controllers
         }
 
         // POST: Employees/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
+        [Authorize(Roles = "Admin")]
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(Guid id, [Bind("Salary,Roles,ID")] Employee employee)
@@ -129,6 +130,7 @@ namespace MVCSampleApp.Controllers
         }
 
         // GET: Employees/Delete/5
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(Guid? id)
         {
             if (id == null)
@@ -147,6 +149,7 @@ namespace MVCSampleApp.Controllers
         }
 
         // POST: Employees/Delete/5
+        [Authorize(Roles = "Admin")]
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(Guid id)

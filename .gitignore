@@ -485,3 +485,11 @@ $RECYCLE.BIN/
 *.db-wal
 
 appsettings.Development.json
+
+# TLS certificates and keys
+*.key
+*.crt
+*.csr
+*.srl
+*.p12
+*.pem

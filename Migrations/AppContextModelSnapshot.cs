@@ -105,11 +105,12 @@ namespace MVCSampleApp.Migrations
                     b.Property<int?>("AddressID")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTime?>("DateOfBirth")
+                    b.Property<string>("DateOfBirth")
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("Income")
-                        .HasColumnType("INTEGER");
+                    b.Property<string>("Income")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.Property<int?>("NameID")
                         .HasColumnType("INTEGER");
@@ -135,7 +136,7 @@ namespace MVCSampleApp.Migrations
                     b.Property<int?>("AddressID")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTime?>("DateOfBirth")
+                    b.Property<string>("DateOfBirth")
                         .HasColumnType("TEXT");
 
                     b.Property<int?>("NameID")

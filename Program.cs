@@ -7,6 +7,7 @@ using AppContext = MVCSampleApp.AppContext;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.AspNetCore.Authentication.Certificate;
 using Microsoft.AspNetCore.HttpOverrides;
+using MVCSampleApp.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,6 +33,8 @@ builder.Services.AddAuthentication()
         googleOptions.ClientId = builder.Configuration["Authentication:Google:ClientId"];
         googleOptions.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
     });
+
+builder.Services.AddSingleton<FieldEncryptionService>();
 
 builder.WebHost.ConfigureKestrel(options =>
 {

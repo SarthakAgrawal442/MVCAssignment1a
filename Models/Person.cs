@@ -10,7 +10,8 @@ namespace MVCSampleApp.Models
         public Guid ID { get; set; }
         public FullName? Name { get; set; }
         public FullAddress? Address { get; set; }
-        public DateTime? DateOfBirth { get; set; }
+        public string? DateOfBirth { get; set; } //encrypted string
         public byte[]? Photo { get; set; }
     }
 }
+

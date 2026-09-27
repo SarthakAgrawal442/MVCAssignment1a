@@ -27,8 +27,4 @@
     <PackageReference Include="Twilio" Version="8.0.1" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Data\" />
-  </ItemGroup>
-
 </Project>

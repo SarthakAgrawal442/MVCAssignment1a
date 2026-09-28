@@ -19,15 +19,18 @@ namespace MVCSampleApp.Controllers
         private readonly AppContext _context;
         private readonly FieldEncryptionService _enc;
         private readonly AuditService _audit;
+        private readonly FileVaultService _vault;
 
         public ClientsController(
             AppContext context,
             FieldEncryptionService enc,
-            AuditService audit)
+            AuditService audit,
+            FileVaultService vault)
         {
             _context = context;
-            _enc = enc;
-            _audit = audit;
+            _enc     = enc;
+            _audit   = audit;
+            _vault   = vault;
         }
 
         // GET: Clients
@@ -82,14 +85,13 @@ namespace MVCSampleApp.Controllers
             if (!TryValidateIncome(client.Income, out int income))
                 return View(client);
 
-            if (file != null && file.Length > 0)
-            {
-                using var target = new MemoryStream();
-                await file.CopyToAsync(target);
-                client.Photo = target.ToArray();
-            }
-
             client.ID = Guid.NewGuid();
+
+            // ── Vault: encrypt and store file ─────────────────────────────
+            if (file != null && file.Length > 0)
+                client.PhotoVaultName = await _vault.SaveAsync(
+                    file.OpenReadStream(), file.FileName);
+
             EncryptClient(client, income);
 
             _context.Clients.Add(client);
@@ -130,7 +132,8 @@ namespace MVCSampleApp.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(
             Guid id,
-            [Bind("Name,Address,Income,DateOfBirth,ID")] Client client)
+            [Bind("Name,Address,Income,DateOfBirth,ID")] Client client,
+            IFormFile? file)
         {
             if (id != client.ID)
                 return NotFound();
@@ -168,6 +171,16 @@ namespace MVCSampleApp.Controllers
                 existing.DateOfBirth = _enc.EncryptDate(
                     DateTime.Parse(client.DateOfBirth));
 
+            // ── Vault: replace photo if a new file is uploaded ────────────
+            if (file != null && file.Length > 0)
+            {
+                if (existing.PhotoVaultName != null)
+                    _vault.Delete(existing.PhotoVaultName);
+
+                existing.PhotoVaultName = await _vault.SaveAsync(
+                    file.OpenReadStream(), file.FileName);
+            }
+
             await _context.SaveChangesAsync();
 
             await _audit.LogAsync(
@@ -177,6 +190,20 @@ namespace MVCSampleApp.Controllers
                 summary:  $"Client edited by {User.Identity?.Name}");
 
             return RedirectToAction(nameof(Index));
+        }
+
+        // GET: Clients/Photo/5  ── serve decrypted image
+        public async Task<IActionResult> GetPhoto(Guid id)
+        {
+            var client = await _context.Clients
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.ID == id);
+
+            if (client?.PhotoVaultName == null)
+                return NotFound();
+
+            var stream = await _vault.LoadAsync(client.PhotoVaultName);
+            return File(stream, "image/jpeg");
         }
 
         // GET: Clients/AvailableServices/5
@@ -199,7 +226,7 @@ namespace MVCSampleApp.Controllers
         public async Task<IActionResult> AddService(int ServiceId, Guid ClientId)
         {
             var service = await _context.Services.FindAsync(ServiceId);
-            var client = await _context.Clients
+            var client  = await _context.Clients
                 .Include(c => c.Services)
                 .FirstOrDefaultAsync(c => c.ID == ClientId);
 
@@ -242,7 +269,6 @@ namespace MVCSampleApp.Controllers
                 return NotFound();
 
             var service = client.Services.FirstOrDefault(s => s.ID == ServiceId);
-
             if (service == null)
                 return NotFound();
 
@@ -282,6 +308,10 @@ namespace MVCSampleApp.Controllers
 
             if (client != null)
             {
+                // ── Vault: remove encrypted file from disk ────────────────
+                if (client.PhotoVaultName != null)
+                    _vault.Delete(client.PhotoVaultName);
+
                 _context.Clients.Remove(client);
                 await _context.SaveChangesAsync();
 

@@ -155,6 +155,9 @@ namespace MVCSampleApp.Migrations
                     b.Property<byte[]>("Photo")
                         .HasColumnType("BLOB");
 
+                    b.Property<string>("PhotoVaultName")
+                        .HasColumnType("TEXT");
+
                     b.HasKey("ID");
 
                     b.HasIndex("AddressID");

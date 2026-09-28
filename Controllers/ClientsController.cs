@@ -18,11 +18,16 @@ namespace MVCSampleApp.Controllers
     {
         private readonly AppContext _context;
         private readonly FieldEncryptionService _enc;
+        private readonly AuditService _audit;
 
-        public ClientsController(AppContext context, FieldEncryptionService enc)
+        public ClientsController(
+            AppContext context,
+            FieldEncryptionService enc,
+            AuditService audit)
         {
             _context = context;
             _enc = enc;
+            _audit = audit;
         }
 
         // GET: Clients
@@ -77,7 +82,6 @@ namespace MVCSampleApp.Controllers
             if (!TryValidateIncome(client.Income, out int income))
                 return View(client);
 
-            // The photo is optional.
             if (file != null && file.Length > 0)
             {
                 using var target = new MemoryStream();
@@ -90,6 +94,12 @@ namespace MVCSampleApp.Controllers
 
             _context.Clients.Add(client);
             await _context.SaveChangesAsync();
+
+            await _audit.LogAsync(
+                action:   "Client.Create",
+                entityId: client.ID.ToString(),
+                payload:  new { client.ID },
+                summary:  $"Client created by {User.Identity?.Name}");
 
             return RedirectToAction(nameof(Index));
         }
@@ -128,8 +138,6 @@ namespace MVCSampleApp.Controllers
             if (!TryValidateIncome(client.Income, out int income))
                 return View(client);
 
-            // Load the existing, tracked entities. Do not Update(client):
-            // the posted client is a separate object with new Name/Address objects.
             var existing = await _context.Clients
                 .Include(c => c.Name)
                 .Include(c => c.Address)
@@ -142,22 +150,32 @@ namespace MVCSampleApp.Controllers
             {
                 existing.Name ??= new FullName();
                 existing.Name.FirstName = _enc.Encrypt(client.Name.FirstName);
-                existing.Name.LastName = _enc.Encrypt(client.Name.LastName);
+                existing.Name.LastName  = _enc.Encrypt(client.Name.LastName);
             }
 
             if (client.Address != null)
             {
                 existing.Address ??= new FullAddress();
-                existing.Address.Street = _enc.Encrypt(client.Address.Street);
-                existing.Address.City = client.Address.City;
-                existing.Address.Province = client.Address.Province;
-                existing.Address.PostalCode =
-                    _enc.Encrypt(client.Address.PostalCode);
+                existing.Address.Street     = _enc.Encrypt(client.Address.Street);
+                existing.Address.City       = client.Address.City;
+                existing.Address.Province   = client.Address.Province;
+                existing.Address.PostalCode = _enc.Encrypt(client.Address.PostalCode);
             }
 
             existing.Income = _enc.EncryptInt(income);
 
+            if (!string.IsNullOrEmpty(client.DateOfBirth))
+                existing.DateOfBirth = _enc.EncryptDate(
+                    DateTime.Parse(client.DateOfBirth));
+
             await _context.SaveChangesAsync();
+
+            await _audit.LogAsync(
+                action:   "Client.Edit",
+                entityId: id.ToString(),
+                payload:  new { id },
+                summary:  $"Client edited by {User.Identity?.Name}");
+
             return RedirectToAction(nameof(Index));
         }
 
@@ -177,12 +195,8 @@ namespace MVCSampleApp.Controllers
             return View(services);
         }
 
-        // Keep the existing route/link shape for now. These actions change
-        // data via GET and should later be changed to POST with antiforgery.
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> AddService(
-            int ServiceId,
-            Guid ClientId)
+        public async Task<IActionResult> AddService(int ServiceId, Guid ClientId)
         {
             var service = await _context.Services.FindAsync(ServiceId);
             var client = await _context.Clients
@@ -218,9 +232,7 @@ namespace MVCSampleApp.Controllers
         }
 
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> RemoveService(
-            int ServiceId,
-            Guid ClientId)
+        public async Task<IActionResult> RemoveService(int ServiceId, Guid ClientId)
         {
             var client = await _context.Clients
                 .Include(c => c.Services)
@@ -229,8 +241,7 @@ namespace MVCSampleApp.Controllers
             if (client == null)
                 return NotFound();
 
-            var service = client.Services
-                .FirstOrDefault(s => s.ID == ServiceId);
+            var service = client.Services.FirstOrDefault(s => s.ID == ServiceId);
 
             if (service == null)
                 return NotFound();
@@ -273,10 +284,18 @@ namespace MVCSampleApp.Controllers
             {
                 _context.Clients.Remove(client);
                 await _context.SaveChangesAsync();
+
+                await _audit.LogAsync(
+                    action:   "Client.Delete",
+                    entityId: id.ToString(),
+                    payload:  new { id },
+                    summary:  $"Client deleted by {User.Identity?.Name}");
             }
 
             return RedirectToAction(nameof(Index));
         }
+
+        // ── Helpers ───────────────────────────────────────────────────────
 
         private bool TryValidateIncome(string? value, out int income)
         {
@@ -295,18 +314,14 @@ namespace MVCSampleApp.Controllers
         {
             if (person.Name != null)
             {
-                person.Name.FirstName =
-                    _enc.Encrypt(person.Name.FirstName);
-                person.Name.LastName =
-                    _enc.Encrypt(person.Name.LastName);
+                person.Name.FirstName = _enc.Encrypt(person.Name.FirstName);
+                person.Name.LastName  = _enc.Encrypt(person.Name.LastName);
             }
 
             if (person.Address != null)
             {
-                person.Address.Street =
-                    _enc.Encrypt(person.Address.Street);
-                person.Address.PostalCode =
-                    _enc.Encrypt(person.Address.PostalCode);
+                person.Address.Street     = _enc.Encrypt(person.Address.Street);
+                person.Address.PostalCode = _enc.Encrypt(person.Address.PostalCode);
             }
 
             person.DateOfBirth = _enc.EncryptDate(
@@ -319,18 +334,14 @@ namespace MVCSampleApp.Controllers
         {
             if (person.Name != null)
             {
-                person.Name.FirstName =
-                    _enc.Decrypt(person.Name.FirstName);
-                person.Name.LastName =
-                    _enc.Decrypt(person.Name.LastName);
+                person.Name.FirstName = _enc.Decrypt(person.Name.FirstName);
+                person.Name.LastName  = _enc.Decrypt(person.Name.LastName);
             }
 
             if (person.Address != null)
             {
-                person.Address.Street =
-                    _enc.Decrypt(person.Address.Street);
-                person.Address.PostalCode =
-                    _enc.Decrypt(person.Address.PostalCode);
+                person.Address.Street     = _enc.Decrypt(person.Address.Street);
+                person.Address.PostalCode = _enc.Decrypt(person.Address.PostalCode);
             }
 
             person.DateOfBirth = _enc.DecryptDate(person.DateOfBirth)

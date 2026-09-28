@@ -12,8 +12,6 @@
     <div class="col-md-4">
         <form asp-action="Edit">
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            @Html.EditorFor(model => model.Name)
-            @Html.EditorFor(model => model.Address)
             <input type="hidden" asp-for="ID" />
             <div class="form-group">
                 <label asp-for="Salary" class="control-label"></label>
@@ -25,7 +23,6 @@
                 <input asp-for="Roles" class="form-control" />
                 <span asp-validation-for="Roles" class="text-danger"></span>
             </div>
-            <input type="hidden" asp-for="ID" />
             <div class="form-group">
                 <input type="submit" value="Save" class="btn btn-primary" />
             </div>

@@ -36,6 +36,9 @@ builder.Services.AddAuthentication()
 
 builder.Services.AddSingleton<FieldEncryptionService>();
 
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<AuditService>();
+
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.ConfigureHttpsDefaults(https =>

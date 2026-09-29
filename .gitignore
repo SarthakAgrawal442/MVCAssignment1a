@@ -483,3 +483,17 @@ $RECYCLE.BIN/
 *.db
 *.db-shm
 *.db-wal
+
+appsettings.Development.json
+
+# TLS certificates and keys
+*.key
+*.crt
+*.csr
+*.srl
+*.p12
+*.pem
+
+vault/
+
+license.cert

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +11,7 @@ using MVCSampleApp.Models;
 
 namespace MVCSampleApp.Controllers
 {
+    [Authorize]
     public class ServicesController : Controller
     {
         private readonly AppContext _context;
@@ -44,14 +46,14 @@ namespace MVCSampleApp.Controllers
         }
 
         // GET: Services/Create
+        [Authorize(Roles = "Admin")]
         public IActionResult Create()
         {
             return View();
         }
 
         // POST: Services/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
+        [Authorize(Roles = "Admin")]
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("ID,Name,Rate")] Service service)
@@ -66,6 +68,7 @@ namespace MVCSampleApp.Controllers
         }
 
         // GET: Services/Edit/5
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null)
@@ -82,8 +85,7 @@ namespace MVCSampleApp.Controllers
         }
 
         // POST: Services/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
+        [Authorize(Roles = "Admin")]
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, [Bind("ID,Name,Rate")] Service service)
@@ -115,6 +117,8 @@ namespace MVCSampleApp.Controllers
             }
             return View(service);
         }
+
+        // GET: Services/UnRegisteredClients/5
         public async Task<IActionResult> UnRegisteredClients(int? id)
         {
             if (id == null)
@@ -122,10 +126,12 @@ namespace MVCSampleApp.Controllers
                 return NotFound();
             }
 
-            List<Client> clients = await _context.Clients.Include(x=>x.Name).Include(x => x.Services).Where(x => x.Services.All(y => y.ID != id)).ToListAsync();
+            List<Client> clients = await _context.Clients.Include(x => x.Name).Include(x => x.Services).Where(x => x.Services.All(y => y.ID != id)).ToListAsync();
             ViewBag.Id = id;
             return View(clients);
         }
+
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> AddClient(int ServiceId, Guid ClientId)
         {
             Client client = await _context.Clients.FindAsync(ClientId);
@@ -153,6 +159,8 @@ namespace MVCSampleApp.Controllers
             }
             return RedirectToAction("Index");
         }
+
+        // GET: Services/RegisteredClients/5
         public async Task<IActionResult> RegisteredClients(int? id)
         {
             if (id == null)
@@ -164,6 +172,8 @@ namespace MVCSampleApp.Controllers
             ViewBag.Id = id;
             return View(clients);
         }
+
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> RemoveClient(int ServiceId, Guid ClientId)
         {
             Client client = await _context.Clients.FindAsync(ClientId);
@@ -193,6 +203,7 @@ namespace MVCSampleApp.Controllers
         }
 
         // GET: Services/Delete/5
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int? id)
         {
             if (id == null)
@@ -211,6 +222,7 @@ namespace MVCSampleApp.Controllers
         }
 
         // POST: Services/Delete/5
+        [Authorize(Roles = "Admin")]
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)

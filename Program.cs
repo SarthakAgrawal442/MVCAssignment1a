@@ -1,46 +1,93 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using MVCSampleApp;
+using MVCSampleApp.Models;
+using MVCSampleApp.Middleware;
+using AppContext = MVCSampleApp.AppContext;
+using Microsoft.AspNetCore.Server.Kestrel.Https;
+using Microsoft.AspNetCore.Authentication.Certificate;
+using Microsoft.AspNetCore.HttpOverrides;
+using MVCSampleApp.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Configure Session
-builder.Services.AddSession(options =>
-{
-    options.IdleTimeout = TimeSpan.FromMinutes(30); // Set session timeout
-    options.Cookie.HttpOnly = true; // Ensures the session cookie is accessible only by the server
-    options.Cookie.IsEssential = true; // Required for GDPR compliance
-});
-
-// 2. Add services to the container (Configured for SQLite on macOS)
 builder.Services.AddControllersWithViews();
-builder.Services.AddDbContext<MVCSampleApp.AppContext>(options => 
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"))
-);
+
+builder.Services.AddDbContext<AppContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+    {
+        options.Password.RequireDigit = false;
+        options.Password.RequireNonAlphanumeric = false;
+        options.Password.RequireUppercase = false;
+        options.Password.RequiredLength = 6;
+    })
+    .AddEntityFrameworkStores<AppContext>()
+    .AddDefaultTokenProviders();
+
+builder.Services.AddAuthentication()
+    .AddCertificate()
+    .AddGoogle(googleOptions =>
+    {
+        googleOptions.ClientId = builder.Configuration["Authentication:Google:ClientId"];
+        googleOptions.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
+    });
+
+builder.Services.AddSingleton<FieldEncryptionService>();
+
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<AuditService>();
+
+builder.Services.AddSingleton<FileVaultService>();
+builder.Services.AddSingleton<LicenseService>();
+
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.ConfigureHttpsDefaults(https =>
+    {
+        https.ClientCertificateMode = ClientCertificateMode.RequireCertificate;
+        https.ClientCertificateValidation = (cert, chain, errors) =>
+        {
+            return cert != null;
+        };
+    });
+});
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
-{
-    var dbContext = scope.ServiceProvider.GetRequiredService<MVCSampleApp.AppContext>();
-    dbContext.Database.EnsureCreated();
-}
-
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
+    app.UseHsts();
+    app.UseHttpsRedirection();
 }
+
 app.UseStaticFiles();
-
 app.UseRouting();
+app.UseMiddleware<IpFilterMiddleware>();
+app.UseCertificateForwarding();
 
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost
+});
+
+app.UseAuthentication();
 app.UseAuthorization();
-
-// Session middleware must be placed BEFORE MapControllerRoute
-app.UseSession();
 
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
+
+using (var scope = app.Services.CreateScope())
+{
+    await SeedData.SeedRolesAndAdminAsync(scope.ServiceProvider);
+}
+
+// ── License check — runs once at startup, not per session ────────────
+var license = app.Services.GetRequiredService<LicenseService>();
+license.Verify();   // throws and halts app if invalid/expired
+// ─────────────────────────────────────────────────────────────────────
 
 app.Run();

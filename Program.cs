@@ -40,6 +40,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<AuditService>();
 
 builder.Services.AddSingleton<FileVaultService>();
+builder.Services.AddSingleton<LicenseService>();
 
 builder.WebHost.ConfigureKestrel(options =>
 {
@@ -83,5 +84,10 @@ using (var scope = app.Services.CreateScope())
 {
     await SeedData.SeedRolesAndAdminAsync(scope.ServiceProvider);
 }
+
+// ── License check — runs once at startup, not per session ────────────
+var license = app.Services.GetRequiredService<LicenseService>();
+license.Verify();   // throws and halts app if invalid/expired
+// ─────────────────────────────────────────────────────────────────────
 
 app.Run();

@@ -495,3 +495,5 @@ appsettings.Development.json
 *.pem
 
 vault/
+
+license.cert
